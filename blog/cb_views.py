@@ -79,7 +79,7 @@ class BlogDetailView(DetailView):
 
 class BlogCreateView(LoginRequiredMixin, CreateView):
     model = Blog
-    template_name = 'blog_create.html'
+    template_name = 'blog_form.html'
     fields = ('title', 'content')
 
     def form_valid(self, form): # 폼이 유효할 때 호출
@@ -88,13 +88,19 @@ class BlogCreateView(LoginRequiredMixin, CreateView):
         self.object.save()
         return HttpResponseRedirect(self.get_success_url())
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['sub_title'] = '작성'
+        context['btn_name'] = '생성'
+        return context
+
     def get_success_url(self): # 새로 생성된 블로그 게시물의 상세 페이지로 리디렉션
         return reverse_lazy('cb_blog_detail', kwargs={'pk': self.object.pk})
 
 
 class BlogUpdateView(LoginRequiredMixin, UpdateView):
     model = Blog
-    template_name = 'blog_update.html'
+    template_name = 'blog_form.html'
     fields = ('title', 'content')           # 요 필드만 수정가능
 
     # 전체 쿼리셋을 필터링하여 다수의 객체를 반환합니다.
@@ -102,6 +108,12 @@ class BlogUpdateView(LoginRequiredMixin, UpdateView):
     def get_queryset(self):
         queryset = super().get_queryset()
         return queryset.filter(author=self.request.user)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['sub_title'] = '수정'
+        context['btn_name'] = '수정'
+        return context
 
         #     # 단일 객체를 검색하고, 검색된 객체에 대해 추가적인 조건 검사를 수행합니다. 여기서는 객체의 작성자가 현재 사용자와 일치하는지 확인합니다.
         # def get_object(self, queryset=None):
