@@ -6,11 +6,10 @@
 # 현재 프로젝트에서 실제로 사용 중인 User 모델을 반환하는 함수/ 기본 User or 커스텀 User 둘 다 가능
 # Django 공식 문서에서도 User 모델을 참조할 때는 항상 get_user_model()을 쓰라고 권장함.
 from django.contrib.auth import get_user_model
-User = get_user_model()
-
 from django.db import models
+from django.urls import reverse
 
-
+User = get_user_model()
 
 # 제목
 # 본문
@@ -41,6 +40,10 @@ class Blog(models.Model):
 
     def __str__(self):
         return f'[{self.get_category_display()}] {self.title[:10]}'
+
+    def get_absolute_url(self):
+        return reverse('blog:detail', kwargs={'pk': self.pk})
+
 
     class Meta:
         verbose_name = '블로그'

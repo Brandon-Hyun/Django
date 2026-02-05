@@ -47,7 +47,7 @@ def login(request):
             return redirect(next)
 
         # config/urls.py 에서 name='blog_list' 일치하는 주소로
-        return redirect(reverse('blog_list'))
+        return redirect(reverse('blog:list'))
 
     context = {
         'form': form
