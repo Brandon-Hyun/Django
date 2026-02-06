@@ -528,6 +528,17 @@ files = [
 ]
 
 [[package]]
+name = "utils"
+version = "1.0.2"
+description = "A grab-bag of utility functions and objects"
+optional = false
+python-versions = ">=3.6"
+groups = ["main"]
+files = [
+    {file = "utils-1.0.2.tar.gz", hash = "sha256:f4d5157e27e9d434006b5b52a1ec951a34e53e7ecaa145d43a153ec452eb5d9e"},
+]
+
+[[package]]
 name = "wcwidth"
 version = "0.5.3"
 description = "Measures the displayed width of unicode strings in a terminal"
@@ -542,4 +553,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12"
-content-hash = "8b26ba1d465424d5156401ba508b56bd294519182aa4ce8a5d8761b60ae69002"
+content-hash = "69c30faafe51bb22f98d2def2f2404323c746ba1d628e6d4e6065ea27936cd4f"
