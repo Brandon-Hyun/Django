@@ -1,10 +1,12 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Q
 from django.http import HttpResponseRedirect, Http404
-from django.urls import reverse_lazy
+from django.shortcuts import get_object_or_404
+from django.urls import reverse_lazy, reverse
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
 
-from blog.models import Blog
+from blog.forms import CommentForm
+from blog.models import Blog, Comment
 '''
 LoginRequiredMixin : 사용자가 로그인을 해야만 이 뷰에 접근할 수 있도록 합니다.
 만약 로그인을 하지 않은 사용자가 접근하려고 하면, 로그인 페이지로 리디렉션됩니다.
@@ -26,18 +28,24 @@ class BlogListView(ListView):
             queryset = queryset.filter(Q(title__icontains=q) | Q(content__icontains=q))
         return queryset
 
-class BlogDetailView(DetailView):
-    model = Blog
+class BlogDetailView(ListView):
+    model = Comment
     template_name = 'blog_detail.html'
+    paginate_by = 10 # 페이지네이션
+
+    def get(self, request, *args, **kwargs):
+        self.object = get_object_or_404(Blog, pk=kwargs.get('blog_pk'))
+        return super().get(request, *args, **kwargs)
 
     """
     1. 이 속성은 URL에서 데이터를 찾을때 사용할 키 이름을 바꿔주는 것
     보통 Django는 pk를 기준으로 데이터를 찾는데, 만약 URL 에서 id라는 이름을 쓰고 싶으면 이걸로 바꿔야함
     URL이 blog/5/ 라면 pk를 쓰고, URL이 blog/<int:id>/라면 id를 씀    
     """
-    # pk_url_kwarg = 'id'
+    pk_url_kwarg = 'blog_pk'
 
     """
+    
     2. get_queryset 메서드는 어떤 데이터를 보여줄지 결정하는 것으로 데이터전체에서 필터링하는 느낌
     블로그 글이 100개 있는데, id=50이하인 글만 보여주고 싶을 때 사용
     queryset = super().get_queryset()        # 전체 데이터 가져오기
@@ -45,9 +53,7 @@ class BlogDetailView(DetailView):
     결과는 50번째 글까지만 보여줌
     """
     def get_queryset(self):
-        queryset = super().get_queryset()
-        return queryset.filter(id__lte=300)
-
+        return self.model.objects.filter(blog=self.object).prefetch_related('author')
 
     """
     3. get_object 메서드는 URL에서 특정 글(데이터) 하나를 가져오는 방법을 바꾸는것
@@ -60,7 +66,7 @@ class BlogDetailView(DetailView):
     """
     def get_object(self, queryset=None):
         object = super().get_object()
-        object = self.model.objects.get(pk=self.kwargs.get('pk'))
+        object = self.model.objects.get(pk=self.kwargs.get('blog_pk'))
 
         return object
 
@@ -73,9 +79,39 @@ class BlogDetailView(DetailView):
     """
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['test'] = 'CBV'
+        context['comment_form'] = CommentForm()
+        context['blog'] = self.object
         return context
+        # # blog 객체 등 기본 컨텍스트 가져오기
+        # context = super().get_context_data(**kwargs)
+        # comment_list = self.object.comment_set.all().order_by('-created_at')
+        # # 2. Paginator 객체 생성
+        # paginator = Paginator(comment_list, 10)
+        # # prefetch_related 로 author도 한번에? N+1 좀 더 파보기..
+        # context['comments'] = page_obj  # 템플릿의 for문에서 사용
+        # context['page_obj'] = page_obj  # pagination.html에서 사용
+        # context['comment_form'] = CommentForm()
+        # return context
 
+    def post(self, *args, **kwargs):
+        comment_form = CommentForm(self.request.POST)
+
+        # 유효성 검사 실패 시
+        if not comment_form.is_valid():
+            self.object = self.get_object()
+        context = self.get_context_data(object=self.object)
+        context['comment_form'] = comment_form
+        return self.render_to_response(context)
+
+        # 로그인 여부 확인
+        if not self.request.user.is_authenticated:
+            raise Http404
+        comment = comment_form.save(commit=False) # 댓글 객체를 데이터베이스에 저장하지 않고 반환
+        comment.blog_id = self.kwargs['pk'] # 현재 블로그 게시글(pk)과 댓글을 연결
+        comment.author = self.request.user # 현재 로그인한 사용자를 댓글 작성자로 설정
+        comment.save() # 댓글을 데이터베이스에 저장
+
+        return HttpResponseRedirect(reverse_lazy('blog:detail', kwargs={'pk': self.kwargs['pk']}))
 
 class BlogCreateView(LoginRequiredMixin, CreateView):
     model = Blog
@@ -95,13 +131,14 @@ class BlogCreateView(LoginRequiredMixin, CreateView):
         return context
 
     def get_success_url(self): # 새로 생성된 블로그 게시물의 상세 페이지로 리디렉션
-        return reverse_lazy('cb_blog_detail', kwargs={'pk': self.object.pk})
+        return reverse_lazy('blog:detail', kwargs={'blog_pk': self.object.pk})
 
 
 class BlogUpdateView(LoginRequiredMixin, UpdateView):
     model = Blog
     template_name = 'blog_form.html'
-    fields = ('title', 'content')           # 요 필드만 수정가능
+    fields = ('title', 'content')
+    pk_url_kwarg = 'blog_pk'
 
     # 전체 쿼리셋을 필터링하여 다수의 객체를 반환합니다.
     # 현재 로그인한 사용자의 글만 가져옴. author != 면 404
@@ -126,9 +163,59 @@ class BlogUpdateView(LoginRequiredMixin, UpdateView):
 
 class BlogDeleteView(LoginRequiredMixin, DeleteView):
     model = Blog
+    template_name = 'blog_detail.html'
+    pk_url_kwarg = 'blog_pk'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['comment_form'] = CommentForm()
+        return context
+
+    def post(self, *args, **kwargs):
+        comment_form = CommentForm(self.request.POST)
+
+        # 유효성 검사 실패 시
+        if not comment_form.is_valid():
+            self.object = self.get_object()
+        context = self.get_context_data(object=self.object)
+        context['comment_form'] = comment_form
+        return self.render_to_response(context)
+
+        # 로그인 여부 확인
+        if not self.request.user.is_authenticated:
+            raise Http404
+
+        comment = comment_form.save(commit=False) # 댓글 객체를 데이터베이스에 저장하지 않고 반환
+        comment.blog_id = self.kwargs['pk'] # 현재 블로그 게시글(pk)과 댓글을 연결
+        comment.author = self.request.user # 현재 로그인한 사용자를 댓글 작성자로 설정
+        comment.save() # 댓글을 데이터베이스에 저장
+
+        return HttpResponseRedirect(reverse_lazy('blog:detail', kwargs={'pk': self.kwargs['pk']}))
+
     def get_queryset(self):
         queryset = super().get_queryset()
         return queryset.filter(author=self.request.user)
 
     def get_success_url(self):
         return reverse_lazy('blog:list')
+
+class CommentCreateView(LoginRequiredMixin, CreateView):
+    model = Comment
+    form_class = CommentForm
+
+    def get(self, *args, **kwargs):
+        raise Http404
+
+    def form_valid(self, form):
+        blog = self.get_blog()
+        self.object = form.save(commit=False)
+        self.object.author = self.request.user
+        self.object.blog = blog
+        self.object.save()
+        return HttpResponseRedirect(reverse('blog:detail', kwargs={'blog_pk': blog.pk}))
+
+    def get_blog(self):
+        pk = self.kwargs['blog_pk']
+        blog = get_object_or_404(Blog, pk=pk) # Blog가 없으면 404에러
+        return blog
+

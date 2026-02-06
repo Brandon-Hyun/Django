@@ -8,6 +8,8 @@
 from django.contrib.auth import get_user_model
 from django.db import models
 from django.urls import reverse
+from utils.models import TimestampModel
+
 
 User = get_user_model()
 
@@ -18,7 +20,7 @@ User = get_user_model()
 # 수정일자
 # 카테고리
 
-class Blog(models.Model):
+class Blog(TimestampModel):
     CATEGORY_CHOICES = (
         ('free','자유'),
         ('travel', '여행'),
@@ -35,17 +37,32 @@ class Blog(models.Model):
     # models.SET_NULL 널 값을 넣음 -> 유저 삭제시 블로그의 author 가 null이 됨. (모델에서 Null = True 여야 함.
     author = models.ForeignKey(User, on_delete=models.CASCADE)
 
-    created_at = models.DateTimeField('작성일자', auto_now_add=True)
-    updated_at = models.DateTimeField('수정일자', auto_now=True)
+    # created_at = models.DateTimeField('작성일자', auto_now_add=True)
+    # updated_at = models.DateTimeField('수정일자', auto_now=True)
+    # from utils.models import TimestampModel **
 
     def __str__(self):
         return f'[{self.get_category_display()}] {self.title[:10]}'
 
     def get_absolute_url(self):
-        return reverse('blog:detail', kwargs={'pk': self.pk})
-
+        return reverse('blog:detail', kwargs={'blog_pk': self.pk})
 
     class Meta:
         verbose_name = '블로그'
         verbose_name_plural = '블로그 목록'
+
+class Comment(TimestampModel):
+    blog = models.ForeignKey(Blog, on_delete = models.CASCADE)
+    content = models.CharField('본문',max_length=255)
+    author = models.ForeignKey(User, on_delete = models.CASCADE)
+
+    def __str__(self):
+        return f'[{self.blog.title} 댓글'
+
+    class Meta:
+        verbose_name = '댓글'
+        verbose_name_plural = '댓글 목록'
+        ordering = ['-created_at', '-id'] # 역정렬
+
+
 
