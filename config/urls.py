@@ -5,7 +5,10 @@ from blog import views
 from member import views as member_views
 from django.views.generic import TemplateView, RedirectView
 from django.views import View
+from config import settings
+from django.conf.urls.static import static
 from blog import cb_views
+
 
 class AboutView(TemplateView):
     template_name = 'about.html'
@@ -31,6 +34,7 @@ urlpatterns = [
     path('accounts/', include("django.contrib.auth.urls")),
     path('signup/',member_views.sign_up,name='signup'),
     path('login/',member_views.login, name='login'),
+    path('summernote/', include('django_summernote.urls')),
     # path('about', AboutView.as_view(), name='about'),
     # path('redirect/', RedirectView.as_view(pattern_name='about'), name='redirect'),
     # path('redirect2/',lambda req: redirect('about')),
@@ -42,3 +46,6 @@ urlpatterns = [
     # path('<int:pk>/update/',cb_views.BlogUpdateView.as_view(), name='update'),
     # path('<int:pk>/delete/', cb_views.BlogDeleteView.as_view(), name='delete'),
 ]
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -42,12 +42,12 @@ def blog_list(request):
     # # Django의 HttpResponse 객체는 self.cookies라는 쿠키저장소, Dict 같음..
     # response.set_cookie('visits',visits)
 
-    return render(request,'blog_list.html',context)
+    return render(request, 'blog_list.html', context)
 
 def blog_detail(request, pk):
     blog = get_object_or_404(Blog, pk=pk)
     context = {'blog':blog}
-    return render(request, 'blog_detail.html', context )
+    return render(request, 'blog/blog_detail.html', context)
 
 @login_required()
 def blog_create(request):
@@ -62,7 +62,7 @@ def blog_create(request):
         return redirect(reverse('fb:detail',kwargs= {'pk': blog.pk} ))
 
     context = {'form':form}
-    return render(request, 'blog_form.html', context)
+    return render(request, 'blog/blog_form.html', context)
 
 @login_required()
 def blog_update(request, pk):
