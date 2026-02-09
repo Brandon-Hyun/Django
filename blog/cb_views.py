@@ -5,7 +5,7 @@ from django.shortcuts import get_object_or_404
 from django.urls import reverse_lazy, reverse
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
 
-from blog.forms import CommentForm
+from blog.forms import CommentForm, BlogForm
 from blog.models import Blog, Comment
 '''
 LoginRequiredMixin : 사용자가 로그인을 해야만 이 뷰에 접근할 수 있도록 합니다.
@@ -30,7 +30,7 @@ class BlogListView(ListView):
 
 class BlogDetailView(ListView):
     model = Comment
-    template_name = 'blog_detail.html'
+    template_name = 'blog/blog_detail.html'
     paginate_by = 10 # 페이지네이션
 
     def get(self, request, *args, **kwargs):
@@ -115,8 +115,8 @@ class BlogDetailView(ListView):
 
 class BlogCreateView(LoginRequiredMixin, CreateView):
     model = Blog
-    template_name = 'blog_form.html'
-    fields = ('title', 'content')
+    template_name = 'blog/blog_form.html'
+    form_class = BlogForm
 
     def form_valid(self, form): # 폼이 유효할 때 호출
         self.object = form.save(commit=False)
@@ -136,15 +136,20 @@ class BlogCreateView(LoginRequiredMixin, CreateView):
 
 class BlogUpdateView(LoginRequiredMixin, UpdateView):
     model = Blog
-    template_name = 'blog_form.html'
-    fields = ('title', 'content')
-    pk_url_kwarg = 'blog_pk'
-
+    template_name = 'blog/blog_form.html'
+    form_class = BlogForm
+    # pk_url_kwarg = 'blog_pk'
     # 전체 쿼리셋을 필터링하여 다수의 객체를 반환합니다.
     # 현재 로그인한 사용자의 글만 가져옴. author != 면 404
     def get_queryset(self):
         queryset = super().get_queryset()
+        if self.request.user.is_superuser:
+            return queryset
         return queryset.filter(author=self.request.user)
+
+    def form_valid(self, form):
+        print(form.cleaned_data)
+        return super().form_valid(form)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -163,7 +168,7 @@ class BlogUpdateView(LoginRequiredMixin, UpdateView):
 
 class BlogDeleteView(LoginRequiredMixin, DeleteView):
     model = Blog
-    template_name = 'blog_detail.html'
+    template_name = 'blog/blog_detail.html'
     pk_url_kwarg = 'blog_pk'
 
     def get_context_data(self, **kwargs):
